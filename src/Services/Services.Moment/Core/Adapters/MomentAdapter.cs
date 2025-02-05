@@ -10,32 +10,35 @@ using Richasy.BiliKernel.Models.User;
 
 namespace Richasy.BiliKernel.Services.Moment.Core;
 
-internal static class MomentAdapter
+/// <summary>
+/// 动态适配器.
+/// </summary>
+public static class MomentAdapter
 {
+    /// <summary>
+    ///     将动态模块 <see cref="DynamicItem"/> 转换为 <see cref="MomentInformation"/>.
+    /// </summary>
     public static MomentInformation ToMomentInformation(this DynamicItem item)
     {
         var modules = item.Modules;
-        var userModule = modules.Where(p => p.ModuleType == DynModuleType.ModuleAuthor).FirstOrDefault()?.ModuleAuthor;
-        var descModule = modules.Where(p => p.ModuleType == DynModuleType.ModuleDesc).FirstOrDefault()?.ModuleDesc;
-        var mainModule = modules.Where(p => p.ModuleType == DynModuleType.ModuleDynamic).FirstOrDefault()?.ModuleDynamic;
-        var dataModule = modules.Where(p => p.ModuleType == DynModuleType.ModuleStat).FirstOrDefault()?.ModuleStat;
+        var userModule = modules.FirstOrDefault(p => p.ModuleType == DynModuleType.ModuleAuthor)?.ModuleAuthor;
+        var descModule = modules.FirstOrDefault(p => p.ModuleType == DynModuleType.ModuleDesc)?.ModuleDesc;
+        var mainModule = modules.FirstOrDefault(p => p.ModuleType == DynModuleType.ModuleDynamic)?.ModuleDynamic;
+        var dataModule = modules.FirstOrDefault(p => p.ModuleType == DynModuleType.ModuleStat)?.ModuleStat;
 
-        if (mainModule is null)
-        {
-            return default;
-        }
-
-        UserProfile user = default;
-        string tip = default;
-        EmoteText description = default;
-        MomentCommunityInformation communityInfo = default;
+        UserProfile user = null;
+        string tip = null;
+        EmoteText description = null;
+        MomentCommunityInformation communityInfo = null;
         var momentId = item.Extend.DynIdStr;
         var replyType = GetReplyTypeFromDynamicType(item.CardType);
         var replyId = replyType == CommentTargetType.Moment
             ? momentId
-            : mainModule.ModuleItemCase == ModuleDynamic.ModuleItemOneofCase.DynPgc
-                ? mainModule.DynPgc.Aid.ToString()
-                : item.Extend.BusinessId;
+             : mainModule is null
+                 ? item.Extend.BusinessId
+                 : mainModule.ModuleItemCase == ModuleDynamic.ModuleItemOneofCase.DynPgc
+                     ? mainModule.DynPgc.Aid.ToString()
+                     : item.Extend.BusinessId;
         var momentType = GetMomentItemType(mainModule);
         var momentData = GetMomentContent(mainModule);
         if (userModule != null)
@@ -46,7 +49,7 @@ internal static class MomentAdapter
         }
         else
         {
-            var forwardUserModule = modules.Where(p => p.ModuleType == DynModuleType.ModuleAuthorForward).FirstOrDefault()?.ModuleAuthorForward;
+            var forwardUserModule = modules.FirstOrDefault(p => p.ModuleType == DynModuleType.ModuleAuthorForward)?.ModuleAuthorForward;
             if (forwardUserModule != null)
             {
                 var name = forwardUserModule.Title.FirstOrDefault()?.Text ?? "--";
@@ -112,6 +115,9 @@ internal static class MomentAdapter
         return new EmoteText(text, emoteDict);
     }
 
+    /// <summary>
+    ///     将转发动态 <see cref="MdlDynForward"/> 转换为 <see cref="MomentInformation"/>.
+    /// </summary>
     public static MomentInformation ToMomentInformation(this MdlDynForward forward)
     {
         var item = forward.Item;
@@ -157,34 +163,13 @@ internal static class MomentAdapter
 
     private static object? GetMomentContent(ModuleDynamic dynamic)
     {
-        if (dynamic == null)
-        {
-            return null;
-        }
-
-        if (dynamic.Type == ModuleDynamicType.MdlDynPgc)
-        {
-            return dynamic.DynPgc.ToEpisodeInformation();
-        }
-        else if (dynamic.Type == ModuleDynamicType.MdlDynArchive)
-        {
-            return dynamic.DynArchive.IsPGC
-                ? dynamic.DynArchive.ToEpisodeInformation()
-                : dynamic.DynArchive.ToVideoInformation();
-        }
-        else if (dynamic.Type == ModuleDynamicType.MdlDynForward)
-        {
-            return dynamic.DynForward.ToMomentInformation();
-        }
-        else if (dynamic.Type == ModuleDynamicType.MdlDynDraw)
-        {
-            return dynamic.DynDraw.Items.Select(p => p.Src.ToImage(240d, 240d)).ToList();
-        }
-        else if (dynamic.Type == ModuleDynamicType.MdlDynArticle)
-        {
-            return dynamic.DynArticle.ToArticleInformation();
-        }
-
-        return null;
+        return dynamic?.Type switch {
+             ModuleDynamicType.MdlDynPgc => dynamic.DynPgc.ToEpisodeInformation(),
+             ModuleDynamicType.MdlDynArchive => dynamic.DynArchive.IsPGC ? dynamic.DynArchive.ToEpisodeInformation() : dynamic.DynArchive.ToVideoInformation(),
+             ModuleDynamicType.MdlDynForward => dynamic.DynForward.ToMomentInformation(),
+             ModuleDynamicType.MdlDynDraw => dynamic.DynDraw.Items.Select(p => p.Src.ToImage()).ToList(),
+             ModuleDynamicType.MdlDynArticle => dynamic.DynArticle.ToArticleInformation(),
+             _ => null,
+         };
     }
 }

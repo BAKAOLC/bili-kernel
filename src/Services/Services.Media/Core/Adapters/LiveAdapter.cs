@@ -31,7 +31,7 @@ internal static class LiveAdapter
     {
         var title = room.Title;
         var roomId = room.RoomId.ToString();
-        var viewerCount = System.Convert.ToDouble(room.ViewerCount);
+        var viewerCount = System.Convert.ToInt32(room.ViewerCount);
         var user = UserAdapterBase.CreateUserProfile(room.UserId ?? 0, room.UserName, room.UserAvatar, 48d);
         var cover = room.Cover.ToVideoCover();
         var subtitle = room.AreaName;
